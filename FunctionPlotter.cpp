@@ -260,12 +260,32 @@ void Plotter2D::plotToSVG(const string& filename) {
     file << "<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n";
     
     // Grid
+    file << "<style> .small { font: 12px sans-serif; } </style>\n";
+    file << "</g>\n";
+    
+    // Grid and Labels
     file << "<g stroke=\"#e0e0e0\" stroke-width=\"1\">\n";
     for (int i = 0; i <= 10; i++) {
         int x = margin + i * (width - 2 * margin) / 10;
         int y = margin + i * (height - 2 * margin) / 10;
+        
         file << "<line x1=\"" << x << "\" y1=\"" << margin << "\" x2=\"" << x << "\" y2=\"" << height - margin << "\"/>\n";
         file << "<line x1=\"" << margin << "\" y1=\"" << y << "\" x2=\"" << width - margin << "\" y2=\"" << y << "\"/>\n";
+        
+        // Label X (Bottom)
+        double valX = minX + i * (maxX - minX) / 10.0;
+        stringstream ssX; 
+        ssX.precision(2); 
+        ssX << fixed << valX;
+        file << "<text x=\"" << x << "\" y=\"" << height - margin + 20 << "\" class=\"small\" text-anchor=\"middle\" fill=\"black\" stroke=\"none\">" << ssX.str() << "</text>\n";
+        
+        // Label Y (Left)
+        // i=0 is top (maxY), i=10 is bottom (minY)
+        double valY = maxY - i * (maxY - minY) / 10.0;
+        stringstream ssY; 
+        ssY.precision(2); 
+        ssY << fixed << valY;
+        file << "<text x=\"" << margin - 10 << "\" y=\"" << y + 4 << "\" class=\"small\" text-anchor=\"end\" fill=\"black\" stroke=\"none\">" << ssY.str() << "</text>\n";
     }
     file << "</g>\n";
     
@@ -361,6 +381,82 @@ void Plotter3D::exportToOBJ(const string& filename) {
     
     file.close();
     cout << "Model 3D disimpan ke " << filename << endl;
+}
+
+void Plotter3D::exportToPLY(const string& filename) {
+    if (points.empty()) return;
+    
+    ofstream file(filename);
+    
+    // Find min/max z for color mapping
+    double minZ = points[0].z, maxZ = points[0].z;
+    for (const auto& p : points) {
+        minZ = min(minZ, p.z);
+        maxZ = max(maxZ, p.z);
+    }
+    
+    // Avoid division by zero if flat surface
+    if (maxZ == minZ) maxZ = minZ + 1.0;
+    
+    int numVertices = points.size();
+    int numFaces = resolution * resolution * 2;
+    
+    // PLY Header
+    file << "ply\n";
+    file << "format ascii 1.0\n";
+    file << "element vertex " << numVertices << "\n";
+    file << "property float x\n";
+    file << "property float y\n";
+    file << "property float z\n";
+    file << "property uchar red\n";
+    file << "property uchar green\n";
+    file << "property uchar blue\n";
+    file << "element face " << numFaces << "\n";
+    file << "property list uchar int vertex_indices\n";
+    file << "end_header\n";
+    
+    // Write vertices with color
+    for (const auto& p : points) {
+        // Normalize Z value to [0, 1] for hue mapping
+        // 240 degrees (Blue) for minZ, 0 degrees (Red) for maxZ
+        double normalized = (p.z - minZ) / (maxZ - minZ);
+        double hue = (1.0 - normalized) * 240.0 / 360.0; // Blue low, Red high
+        
+        Color rgb = HSLtoRGB(hue, 1.0, 0.5);
+        
+        int r = (int)(rgb.r * 255);
+        int g = (int)(rgb.g * 255);
+        int b = (int)(rgb.b * 255);
+        
+        // PLY uses x, z, y convention like we did for OBJ ? 
+        // OBJ Implementation used: file << "v " << p.x << " " << p.z << " " << p.y << "\n";
+        // Let's stick to X Y Z (standard) but maybe swap Y and Z if needed for comparison with OBJ.
+        // Actually, OBJ usually uses Y as up. Standard Math plots usually have Z as up.
+        // The OBJ implementation swapped Y and Z: p.x, p.z (as y), p.y (as z).
+        // Let's keep consistency with the OBJ output so they look the same orientation.
+        
+        file << p.x << " " << p.z << " " << p.y << " " << r << " " << g << " " << b << "\n";
+    }
+    
+    // Write faces
+    for (int i = 0; i < resolution; i++) {
+        for (int j = 0; j < resolution; j++) {
+            int a = i * (resolution + 1) + j;
+            int b = a + 1;
+            int c = (i + 1) * (resolution + 1) + j;
+            int d = c + 1;
+            
+            // Note: indices in PLY are 0-based, OBJ was 1-based.
+            // My OBJ implementation: a = i * (resolution + 1) + j + 1;
+            // So for PLY (0-based), it is just i * (resolution + 1) + j.
+            
+            file << "3 " << a << " " << b << " " << c << "\n";
+            file << "3 " << b << " " << d << " " << c << "\n";
+        }
+    }
+    
+    file.close();
+    cout << "Model 3D Berwarna disimpan ke " << filename << endl;
 }
 
 // ============================================
