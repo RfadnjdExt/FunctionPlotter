@@ -71,9 +71,11 @@ int main() {
                 
                 plotter.plotToConsole();
                 plotter.exportToOBJ("output_3d.obj");
+                plotter.exportToPLY("output_3d.ply");
                 
                 cout << "\n Model 3D berhasil dibuat!\n";
-                cout << "  File OBJ dapat dibuka dengan Blender/MeshLab\n";
+                cout << "  - output_3d.obj (Polos)\n";
+                cout << "  - output_3d.ply (Berwarna - Buka di MeshLab/Blender)\n";
             }
             catch (const exception& e) {
                 cout << "Error: " << e.what() << endl;

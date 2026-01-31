@@ -88,6 +88,7 @@ public:
     Plotter3D(string funcName, int res = 50);
     void generateSurface(MathEvaluator& evaluator, Range range);
     void exportToOBJ(const string& filename);
+    void exportToPLY(const string& filename);
     void plotToConsole();
 };
 
