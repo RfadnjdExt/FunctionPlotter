@@ -6,8 +6,13 @@ int main() {
     do {
         clearScreen();
         displayMenu();
-        cin >> choice;
-        cin.ignore();
+        if (!(cin >> choice)) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            choice = 0;
+            continue;
+        }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
         
         if (choice == 1) {
             // MODE 2D
@@ -29,16 +34,20 @@ int main() {
                 MathEvaluator evaluator(function);
                 Plotter2D plotter(function);
                 
-                cout << "\nMenghasilkan data...\n";
+                cout << "Menghasilkan data...\n";
                 plotter.generateData(evaluator, range);
                 
                 plotter.plotToConsole();
-                plotter.plotToSVG("output_2d.svg");
+                plotter.plotToSVG("final_plot.svg");
                 
                 cout << "\n Grafik berhasil dibuat!\n";
+                cout << " File: final_plot.svg\n";
             }
             catch (const exception& e) {
-                cout << "Error: " << e.what() << endl;
+                cerr << "\n!!! C++ Exception: " << e.what() << endl;
+            }
+            catch (...) {
+                cerr << "\n!!! Unknown Exception occurred!" << endl;
             }
             
             cout << "\nTekan Enter untuk melanjutkan...";
