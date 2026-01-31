@@ -5,12 +5,50 @@
 // ============================================
 
 MathEvaluator::MathEvaluator(string expr) : expression(expr) {
-    // Ganti operator ^ dengan **
+    // 1. Remove all spaces
+    expression.erase(remove_if(expression.begin(), expression.end(), ::isspace), expression.end());
+
+    // 2. Replacements common operators
     size_t pos = 0;
     while ((pos = expression.find("^", pos)) != string::npos) {
         expression.replace(pos, 1, "**");
         pos += 2;
     }
+
+    // 3. Smart Parsing (Implicit Multiplication)
+    string result = "";
+    for (size_t i = 0; i < expression.length(); i++) {
+        char c = expression[i];
+        result += c;
+
+        if (i + 1 < expression.length()) {
+            char next = expression[i + 1];
+            bool isCurrDigit = isdigit(c);
+            bool isCurrVar = (c == 'x' || c == 'y');
+            bool isCurrCloseParen = (c == ')');
+            
+            bool isNextDigit = isdigit(next);
+            bool isNextVar = (next == 'x' || next == 'y');
+            bool isNextOpenParen = (next == '(');
+            bool isNextFunc = isalpha(next) && next != 'x' && next != 'y'; // approximate check for function start like 's'in, 'c'os
+            
+            // Case 1: Number followed by Variable or Parenthesis or Function (e.g., 2x, 2(..), 2sin)
+            if (isCurrDigit && (isNextVar || isNextOpenParen || isNextFunc)) {
+                result += "*";
+            }
+            // Case 2: Variable followed by Number (rare but e.g. x2?) -> usually handled as part of var name if not careful, 
+            // but here variables are just x, y. So x2 is x*2.
+            else if (isCurrVar && (isNextDigit || isNextVar || isNextOpenParen || isNextFunc)) {
+                result += "*";
+            }
+            // Case 3: Closing Parenthesis followed by Number, Variable, or Open Parenthesis (e.g. )2, )x, )( )
+            else if (isCurrCloseParen && (isNextDigit || isNextVar || isNextOpenParen || isNextFunc)) {
+                result += "*";
+            }
+        }
+    }
+    expression = result;
+    // cout << "DEBUG PARSED: " << expression << endl;
 }
 
 double MathEvaluator::parseNumber(const string& str, size_t& pos) {
@@ -72,65 +110,28 @@ double MathEvaluator::parseFactor(const string& str, size_t& pos, double x, doub
     }
     
     // Inverse Trigonometric Functions
-    if (str.substr(pos, 4) == "asin") {
-        pos += 4;
-        return asin(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 4) == "acos") {
-        pos += 4;
-        return acos(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 4) == "atan") {
-        pos += 4;
-        return atan(parseFactor(str, pos, x, y));
+    if (pos + 4 <= str.length()) {
+        if (str.substr(pos, 4) == "asin") { pos += 4; return asin(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 4) == "acos") { pos += 4; return acos(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 4) == "atan") { pos += 4; return atan(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 4) == "sinh") { pos += 4; return sinh(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 4) == "cosh") { pos += 4; return cosh(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 4) == "tanh") { pos += 4; return tanh(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 4) == "sqrt") { pos += 4; return sqrt(parseFactor(str, pos, x, y)); }
     }
     
-    // Hyperbolic Functions
-    if (str.substr(pos, 4) == "sinh") {
-        pos += 4;
-        return sinh(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 4) == "cosh") {
-        pos += 4;
-        return cosh(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 4) == "tanh") {
-        pos += 4;
-        return tanh(parseFactor(str, pos, x, y));
+    if (pos + 3 <= str.length()) {
+        if (str.substr(pos, 3) == "sin") { pos += 3; return sin(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 3) == "cos") { pos += 3; return cos(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 3) == "tan") { pos += 3; return tan(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 3) == "log") { pos += 3; return log(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 3) == "exp") { pos += 3; return exp(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 3) == "abs") { pos += 3; return abs(parseFactor(str, pos, x, y)); }
     }
 
-    // Standard Trigonometric Functions
-    if (str.substr(pos, 3) == "sin") {
-        pos += 3;
-        return sin(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 3) == "cos") {
-        pos += 3;
-        return cos(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 3) == "tan") {
-        pos += 3;
-        return tan(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 3) == "log") {
-        pos += 3;
-        return log(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 2) == "ln") {
-        pos += 2;
-        return log(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 3) == "exp") {
-        pos += 3;
-        return exp(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 4) == "sqrt") {
-        pos += 4;
-        return sqrt(parseFactor(str, pos, x, y));
-    }
-    if (str.substr(pos, 3) == "abs") {
-        pos += 3;
-        return abs(parseFactor(str, pos, x, y));
+    if (pos + 2 <= str.length()) {
+        if (str.substr(pos, 2) == "ln") { pos += 2; return log(parseFactor(str, pos, x, y)); }
+        if (str.substr(pos, 2) == "pi") { pos += 2; return M_PI; }
     }
     
     // Number
@@ -237,80 +238,80 @@ void Plotter2D::generateData(MathEvaluator& evaluator, Range range) {
 
 void Plotter2D::plotToSVG(const string& filename) {
     if (points.empty()) return;
-    
-    ofstream file(filename);
-    
-    // Find min/max untuk scaling
+
+    FILE* file = fopen(filename.c_str(), "w");
+    if (!file) {
+        cerr << "Error: Could not open " << filename << " for writing." << endl;
+        return;
+    }
+
+    // Find min/max scaling
     double minX = points[0].x, maxX = points[0].x;
     double minY = points[0].y, maxY = points[0].y;
-    
+
     for (const auto& p : points) {
-        minX = min(minX, p.x);
-        maxX = max(maxX, p.x);
-        minY = min(minY, p.y);
-        maxY = max(maxY, p.y);
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
     }
-    
+
+    if (abs(maxX - minX) < 1e-9) maxX = minX + 1.0;
+    if (abs(maxY - minY) < 1e-9) maxY = minY + 1.0;
+
     // SVG dimensions
     int width = 800, height = 600;
     int margin = 50;
-    
-    file << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-    file << "<svg width=\"" << width << "\" height=\"" << height << "\" xmlns=\"http://www.w3.org/2000/svg\">\n";
-    file << "<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n";
-    
-    // Grid
-    file << "<style> .small { font: 12px sans-serif; } </style>\n";
-    file << "</g>\n";
-    
+
+    fprintf(file, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    fprintf(file, "<svg width=\"%d\" height=\"%d\" xmlns=\"http://www.w3.org/2000/svg\">\n", width, height);
+    fprintf(file, "<rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
+
     // Grid and Labels
-    file << "<g stroke=\"#e0e0e0\" stroke-width=\"1\">\n";
+    fprintf(file, "<style> .small { font: 12px sans-serif; } </style>\n");
+    fprintf(file, "<g stroke=\"#e0e0e0\" stroke-width=\"1\">\n");
     for (int i = 0; i <= 10; i++) {
         int x = margin + i * (width - 2 * margin) / 10;
         int y = margin + i * (height - 2 * margin) / 10;
-        
-        file << "<line x1=\"" << x << "\" y1=\"" << margin << "\" x2=\"" << x << "\" y2=\"" << height - margin << "\"/>\n";
-        file << "<line x1=\"" << margin << "\" y1=\"" << y << "\" x2=\"" << width - margin << "\" y2=\"" << y << "\"/>\n";
-        
+
+        fprintf(file, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\"/>\n", x, margin, x, height - margin);
+        fprintf(file, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\"/>\n", margin, y, width - margin, y);
+
         // Label X (Bottom)
         double valX = minX + i * (maxX - minX) / 10.0;
-        stringstream ssX; 
-        ssX.precision(2); 
-        ssX << fixed << valX;
-        file << "<text x=\"" << x << "\" y=\"" << height - margin + 20 << "\" class=\"small\" text-anchor=\"middle\" fill=\"black\" stroke=\"none\">" << ssX.str() << "</text>\n";
-        
+        fprintf(file, "<text x=\"%d\" y=\"%d\" class=\"small\" text-anchor=\"middle\" fill=\"black\" stroke=\"none\">%.2f</text>\n", x, height - margin + 20, valX);
+
         // Label Y (Left)
-        // i=0 is top (maxY), i=10 is bottom (minY)
         double valY = maxY - i * (maxY - minY) / 10.0;
-        stringstream ssY; 
-        ssY.precision(2); 
-        ssY << fixed << valY;
-        file << "<text x=\"" << margin - 10 << "\" y=\"" << y + 4 << "\" class=\"small\" text-anchor=\"end\" fill=\"black\" stroke=\"none\">" << ssY.str() << "</text>\n";
+        fprintf(file, "<text x=\"%d\" y=\"%d\" class=\"small\" text-anchor=\"end\" fill=\"black\" stroke=\"none\">%.2f</text>\n", margin - 10, y + 4, valY);
     }
-    file << "</g>\n";
-    
+    fprintf(file, "</g>\n");
+
     // Axes
-    int zeroX = margin + (0 - minX) / (maxX - minX) * (width - 2 * margin);
-    int zeroY = height - margin - (0 - minY) / (maxY - minY) * (height - 2 * margin);
-    file << "<line x1=\"" << margin << "\" y1=\"" << zeroY << "\" x2=\"" << width - margin << "\" y2=\"" << zeroY << "\" stroke=\"black\" stroke-width=\"2\"/>\n";
-    file << "<line x1=\"" << zeroX << "\" y1=\"" << margin << "\" x2=\"" << zeroX << "\" y2=\"" << height - margin << "\" stroke=\"black\" stroke-width=\"2\"/>\n";
+    int zeroX = margin + (int)((0 - minX) / (maxX - minX) * (width - 2 * margin));
+    int zeroY = height - margin - (int)((0 - minY) / (maxY - minY) * (height - 2 * margin));
     
+    // Safety check for axes within bounds
+    if (zeroY >= margin && zeroY <= height - margin)
+        fprintf(file, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"black\" stroke-width=\"2\"/>\n", margin, zeroY, width - margin, zeroY);
+    if (zeroX >= margin && zeroX <= width - margin)
+        fprintf(file, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"black\" stroke-width=\"2\"/>\n", zeroX, margin, zeroX, height - margin);
+
     // Plot curve
-    file << "<polyline points=\"";
+    fprintf(file, "<polyline points=\"");
     for (const auto& p : points) {
-        int x = margin + (p.x - minX) / (maxX - minX) * (width - 2 * margin);
-        int y = height - margin - (p.y - minY) / (maxY - minY) * (height - 2 * margin);
-        file << x << "," << y << " ";
+        int px = margin + (int)((p.x - minX) / (maxX - minX) * (width - 2 * margin));
+        int py = height - margin - (int)((p.y - minY) / (maxY - minY) * (height - 2 * margin));
+        fprintf(file, "%d,%d ", px, py);
     }
-    file << "\" fill=\"none\" stroke=\"#4f46e5\" stroke-width=\"3\"/>\n";
-    
+    fprintf(file, "\" fill=\"none\" stroke=\"#4f46e5\" stroke-width=\"3\"/>\n");
+
     // Title
-    file << "<text x=\"" << width / 2 << "\" y=\"30\" font-size=\"20\" text-anchor=\"middle\" font-weight=\"bold\">";
-    file << "f(x) = " << functionName << "</text>\n";
-    
-    file << "</svg>\n";
-    file.close();
-    
+    fprintf(file, "<text x=\"%d\" y=\"30\" font-size=\"20\" text-anchor=\"middle\" font-weight=\"bold\">f(x) = %s</text>\n", width / 2, functionName.c_str());
+
+    fprintf(file, "</svg>\n");
+    fclose(file);
+
     cout << "Grafik disimpan ke " << filename << endl;
 }
 
@@ -356,14 +357,18 @@ void Plotter3D::generateSurface(MathEvaluator& evaluator, Range range) {
 }
 
 void Plotter3D::exportToOBJ(const string& filename) {
-    ofstream file(filename);
+    FILE* file = fopen(filename.c_str(), "w");
+    if (!file) {
+        cerr << "Error: Could not open " << filename << " for writing." << endl;
+        return;
+    }
     
-    file << "# OBJ file generated by FunctionPlotter\n";
-    file << "# Function: f(x,y) = " << functionName << "\n\n";
+    fprintf(file, "# OBJ file generated by FunctionPlotter\n");
+    fprintf(file, "# Function: f(x,y) = %s\n\n", functionName.c_str());
     
     // Write vertices
     for (const auto& p : points) {
-        file << "v " << p.x << " " << p.z << " " << p.y << "\n";
+        fprintf(file, "v %.4f %.4f %.4f\n", p.x, p.z, p.y);
     }
     
     // Write faces
@@ -374,68 +379,62 @@ void Plotter3D::exportToOBJ(const string& filename) {
             int c = (i + 1) * (resolution + 1) + j + 1;
             int d = c + 1;
             
-            file << "f " << a << " " << b << " " << c << "\n";
-            file << "f " << b << " " << d << " " << c << "\n";
+            fprintf(file, "f %d %d %d\n", a, b, c);
+            fprintf(file, "f %d %d %d\n", b, d, c);
         }
     }
     
-    file.close();
+    fclose(file);
     cout << "Model 3D disimpan ke " << filename << endl;
 }
 
 void Plotter3D::exportToPLY(const string& filename) {
     if (points.empty()) return;
     
-    ofstream file(filename);
+    FILE* file = fopen(filename.c_str(), "w");
+    if (!file) {
+        cerr << "Error: Could not open " << filename << " for writing." << endl;
+        return;
+    }
     
     // Find min/max z for color mapping
     double minZ = points[0].z, maxZ = points[0].z;
     for (const auto& p : points) {
-        minZ = min(minZ, p.z);
-        maxZ = max(maxZ, p.z);
+        if (p.z < minZ) minZ = p.z;
+        if (p.z > maxZ) maxZ = p.z;
     }
     
     // Avoid division by zero if flat surface
-    if (maxZ == minZ) maxZ = minZ + 1.0;
+    if (abs(maxZ - minZ) < 1e-9) maxZ = minZ + 1.0;
     
-    int numVertices = points.size();
+    int numVertices = (int)points.size();
     int numFaces = resolution * resolution * 2;
     
     // PLY Header
-    file << "ply\n";
-    file << "format ascii 1.0\n";
-    file << "element vertex " << numVertices << "\n";
-    file << "property float x\n";
-    file << "property float y\n";
-    file << "property float z\n";
-    file << "property uchar red\n";
-    file << "property uchar green\n";
-    file << "property uchar blue\n";
-    file << "element face " << numFaces << "\n";
-    file << "property list uchar int vertex_indices\n";
-    file << "end_header\n";
+    fprintf(file, "ply\n");
+    fprintf(file, "format ascii 1.0\n");
+    fprintf(file, "element vertex %d\n", numVertices);
+    fprintf(file, "property float x\n");
+    fprintf(file, "property float y\n");
+    fprintf(file, "property float z\n");
+    fprintf(file, "property uchar red\n");
+    fprintf(file, "property uchar green\n");
+    fprintf(file, "property uchar blue\n");
+    fprintf(file, "element face %d\n", numFaces);
+    fprintf(file, "property list uchar int vertex_indices\n");
+    fprintf(file, "end_header\n");
     
     // Write vertices with color
     for (const auto& p : points) {
-        // Normalize Z value to [0, 1] for hue mapping
-        // 240 degrees (Blue) for minZ, 0 degrees (Red) for maxZ
         double normalized = (p.z - minZ) / (maxZ - minZ);
-        double hue = (1.0 - normalized) * 240.0 / 360.0; // Blue low, Red high
-        
+        double hue = (1.0 - normalized) * 240.0 / 360.0;
         Color rgb = HSLtoRGB(hue, 1.0, 0.5);
         
         int r = (int)(rgb.r * 255);
         int g = (int)(rgb.g * 255);
         int b = (int)(rgb.b * 255);
         
-        // PLY uses x, z, y convention like we did for OBJ ? 
-        // OBJ Implementation used: file << "v " << p.x << " " << p.z << " " << p.y << "\n";
-        // Let's stick to X Y Z (standard) but maybe swap Y and Z if needed for comparison with OBJ.
-        // Actually, OBJ usually uses Y as up. Standard Math plots usually have Z as up.
-        // The OBJ implementation swapped Y and Z: p.x, p.z (as y), p.y (as z).
-        // Let's keep consistency with the OBJ output so they look the same orientation.
-        
-        file << p.x << " " << p.z << " " << p.y << " " << r << " " << g << " " << b << "\n";
+        fprintf(file, "%.4f %.4f %.4f %d %d %d\n", p.x, p.z, p.y, r, g, b);
     }
     
     // Write faces
@@ -446,16 +445,12 @@ void Plotter3D::exportToPLY(const string& filename) {
             int c = (i + 1) * (resolution + 1) + j;
             int d = c + 1;
             
-            // Note: indices in PLY are 0-based, OBJ was 1-based.
-            // My OBJ implementation: a = i * (resolution + 1) + j + 1;
-            // So for PLY (0-based), it is just i * (resolution + 1) + j.
-            
-            file << "3 " << a << " " << b << " " << c << "\n";
-            file << "3 " << b << " " << d << " " << c << "\n";
+            fprintf(file, "3 %d %d %d\n", a, b, c);
+            fprintf(file, "3 %d %d %d\n", b, d, c);
         }
     }
     
-    file.close();
+    fclose(file);
     cout << "Model 3D Berwarna disimpan ke " << filename << endl;
 }
 
@@ -559,8 +554,8 @@ void clearScreen() {
 void displayMenu() {
     cout << "\n";
     cout << "\n";
-    cout << "   VISUALISASI FUNGSI 2D & 3D - KALKULUS 2  \n";
-    cout << "--------------------------------------------\n";
+    cout << "   VISUALISASI FUNGSI 2D & 3D - KALKULUS 2 (v1.3-STABLE) \n";
+    cout << "--------------------------------------------------------\n";
     cout << "\nPilih Mode:\n";
     cout << "1. Fungsi 2D (1 variabel bebas)\n";
     cout << "2. Fungsi 3D (2 variabel bebas)\n";
